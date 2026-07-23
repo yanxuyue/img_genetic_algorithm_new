@@ -34,12 +34,12 @@ right_sums = [np.sum(np.array(Image.open(f"{pics[i]}").convert("L"))[:, -1]) for
 left_white = np.argmax(left_sums)    # 最左纸片
 right_white = np.argmax(right_sums)  # 最右纸片
 # 软引导（替代硬约束）
-penalty = 100  # 相当于100个像素完全错位的代价，具体数值可微调
-diftable[:, left_white] += penalty   # 最左纸片被接在后面会被惩罚
-diftable[right_white, :] += penalty  # 最右纸片接在前面会被惩罚
+penalty = 200  # 相当于100个像素完全错位的代价，具体数值可微调
+diftable[:, left_white] += penalty
+diftable[right_white, :] += penalty
 # ----------------------------------------------------------
 # 初始种群,允许重复的排列
-n = 100  # 族群内的个数,用偶数
+n = 150  # 族群内的个数,用偶数
 first_generation = np.zeros((n, 19), dtype=int)
 for i in range(n):
     first_generation[i] = np.random.permutation(19)
@@ -85,8 +85,8 @@ difmean = np.zeros(iterations)  # 每代平均代价
 difbest = np.zeros(iterations)  # 每代最优代价
 pathbest = np.zeros((iterations, 19))  # 每代最优排序
 bestpath = np.zeros(19)  # 全局最优解
-mutation_p = 0.01  # 变异概率,小于才变
-span_num = 50  # 逆转次数
+mutation_p = 0.1  # 变异概率,小于才变
+span_num = 70  # 逆转次数
 
 while iteration < iterations:
     sons = np.zeros((n, 19), dtype=int)  # 暂时存储每一代
@@ -122,13 +122,10 @@ while iteration < iterations:
     sons[-1] = first_generation[elite_indices[1]].copy()
     # -------精英保留结束-------
     # 变异
-    for i in range(n-2):
-        x = np.random.rand()
-        if x < mutation_p:
-            # 进行变异
+    for i in range(n - 2):
+        if np.random.rand() < mutation_p:
             j, g = np.sort(np.random.choice(19, 2, replace=False))
-            sons[i][j], sons[i][g] = sons[i][g], sons[i][j]
-
+            sons[i, j:g] = sons[i, j:g][::-1]  # 随机逆转，替代交换
     # 计算每个子代的适配度
     son_fitness = np.zeros(n)
     for i in range(n):
@@ -163,16 +160,16 @@ while iteration < iterations:
         for j in range(18):
             c += diftable[sons[i][j], sons[i][j+1]]
         temdif[i] = c
-    # -------对当代最优个体进行2-opt-----------
+    # ----对精英和当代最优个体都进行2-opt（用set去重，防止同一索引被重复处理）------
     best_idx = np.argmin(temdif)
-    optimized = two_opt(sons[best_idx].copy(), diftable)
-
-    # 如果2-opt确实改进了，就替换回去
-    opt_cost = sum(diftable[optimized[k], optimized[k + 1]] for k in range(18))
-    if opt_cost < temdif[best_idx]:
-        sons[best_idx] = optimized
-        temdif[best_idx] = opt_cost
-        son_fitness[best_idx] = 1 / (opt_cost + 1e-8)
+    optimize_indices = set([best_idx, n-2, n-1])
+    for idx in optimize_indices:
+        optimized = two_opt(sons[idx].copy(), diftable)
+        opt_cost = sum(diftable[optimized[k], optimized[k+1]] for k in range(18))
+        if opt_cost < temdif[idx]:
+            sons[idx] = optimized
+            temdif[idx] = opt_cost
+            son_fitness[idx] = 1 / (opt_cost + 1e-8)
     # ---------------------------------------
     # 每代平均代价
     difmean[iteration] = np.mean(temdif)
@@ -200,7 +197,7 @@ ax[1].plot(np.arange(iteration), difbest, 'k')
 ax[1].set_title('Best Difference')
 ax[1].set_xlabel('Iteration')
 
-fig.savefig("dif_07.png")
+fig.savefig("dif_10.png")
 plt.show()
 
 # 拼接纸片(横向)
@@ -212,6 +209,6 @@ offset_x = 0
 for im in image:
     img.paste(im, (offset_x, 0))
     offset_x += im.width
-img.save("merged_result07.bmp")
+img.save("merged_result10.bmp")
 img.show()
 
