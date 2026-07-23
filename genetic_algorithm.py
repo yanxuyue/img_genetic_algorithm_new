@@ -15,6 +15,9 @@ picspixel = np.zeros((19, 2), dtype=object)
 for i in range(19):
     x = Image.open(f"{pics[i]}")
     y = np.array(x.convert("L"))  # 变成像素矩阵
+    # ------二值化 ------
+    y = (y > 128).astype(int)
+    # ------二值化结束----
     picspixel[i, 0] = y[:, 0]
     picspixel[i, 1] = y[:, -1]
 
@@ -150,7 +153,7 @@ ax[1].plot(np.arange(iteration), difbest, 'k')
 ax[1].set_title('Best Difference')
 ax[1].set_xlabel('Iteration')
 
-fig.savefig("dif_02.png")
+fig.savefig("dif_04.png")
 plt.show()
 
 # 拼接纸片(横向)
@@ -162,6 +165,6 @@ offset_x = 0
 for im in image:
     img.paste(im, (offset_x, 0))
     offset_x += im.width
-img.save("merged_result02.bmp")
+img.save("merged_result04.bmp")
 img.show()
 
